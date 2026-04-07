@@ -1,7 +1,7 @@
 package com.combos.TaskManager.dto.TaskDTO;
 
 import com.combos.TaskManager.dto.CommentDTO.CommentResponseDTO;
-import com.combos.TaskManager.dto.ProjectDTO.ProjectResponseDTO;
+import com.combos.TaskManager.dto.ProjectDTO.ProjectSummaryDTO;
 import com.combos.TaskManager.entity.enums.TaskStatus;
 
 import java.time.LocalDateTime;
@@ -14,7 +14,7 @@ public record TaskResponseDTO(
         TaskStatus status,
         LocalDateTime createdAt,
         LocalDateTime updatedAt,
-        ProjectResponseDTO project,
+        ProjectSummaryDTO project,
         List<CommentResponseDTO> comments
 ) {
 }
