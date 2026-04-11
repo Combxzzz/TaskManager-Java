@@ -2,6 +2,7 @@ package com.combos.TaskManager.dto.TaskDTO;
 
 import com.combos.TaskManager.dto.CommentDTO.CommentResponseDTO;
 import com.combos.TaskManager.dto.ProjectDTO.ProjectSummaryDTO;
+import com.combos.TaskManager.dto.UserDTO.UserResponseDTO;
 import com.combos.TaskManager.entity.enums.TaskStatus;
 
 import java.time.LocalDateTime;
@@ -12,6 +13,7 @@ public record TaskResponseDTO(
         String name,
         String description,
         TaskStatus status,
+        UserResponseDTO creator,
         LocalDateTime createdAt,
         LocalDateTime updatedAt,
         ProjectSummaryDTO project,

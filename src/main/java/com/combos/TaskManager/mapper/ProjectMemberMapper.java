@@ -5,6 +5,7 @@ import com.combos.TaskManager.dto.ProjectMemberDTO.ProjectMemberResponseDTO;
 import com.combos.TaskManager.entity.Project;
 import com.combos.TaskManager.entity.ProjectMember;
 import com.combos.TaskManager.entity.User;
+import com.combos.TaskManager.entity.enums.ProjectRole;
 
 public class ProjectMemberMapper {
     public static ProjectMember toEntity(
@@ -16,8 +17,8 @@ public class ProjectMemberMapper {
         ProjectMember projectMember = new ProjectMember();
 
         projectMember.setProject(project);
-        projectMember.setRole(dto.role());
         projectMember.setUser(user);
+        projectMember.setRole(ProjectRole.MEMBER);
 
         return projectMember;
     }

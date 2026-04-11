@@ -15,7 +15,6 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 
 @Service
-// TODO: Add JWT for verification in add and delete member
 public class ProjectMemberService {
 
     private final ProjectMemberRepository projectMemberRepository;
@@ -49,9 +48,20 @@ public class ProjectMemberService {
         );
     }
 
-    public ProjectMemberResponseDTO addMember(ProjectMemberRequestDTO dto) {
+    private boolean isProjectAdmin(Long projectId, Long userId) {
+        return projectMemberRepository
+                .findByProjectIdAndUserId(projectId, userId)
+                .map(m -> m.getRole() == ProjectRole.ADMIN)
+                .orElse(false);
+    }
+
+    public ProjectMemberResponseDTO addMember(Long requesterUserId, ProjectMemberRequestDTO dto) {
         User user = findUserById(dto.userId());
         Project project = findProjectById(dto.projectId());
+
+        if (!isProjectAdmin(dto.projectId(), requesterUserId)) {
+            throw new RuntimeException("Only admins can add members to project");
+        }
 
         if (projectMemberRepository.existsByUserAndProject(user, project)) {
             throw new RuntimeException("User already in this project");
@@ -64,8 +74,8 @@ public class ProjectMemberService {
         return ProjectMemberMapper.toDTO(member);
     }
 
-    public List<ProjectMemberResponseDTO> findAllByProjectId(Long id) {
-        return projectMemberRepository.findByProjectId(id).stream()
+    public List<ProjectMemberResponseDTO> findAllByProjectId(Long projectId) {
+        return projectMemberRepository.findByProjectId(projectId).stream()
                 .map(ProjectMemberMapper::toDTO)
                 .toList();
     }
@@ -79,10 +89,15 @@ public class ProjectMemberService {
         return ProjectMemberMapper.toDTO(member);
     }
 
-    public void deleteMemberById(Long id) {
-        ProjectMember member = findProjectMemberById(id);
+    public void deleteMemberById(Long requesterUserId, Long memberId, Long projectId) {
+        ProjectMember member = findProjectMemberById(memberId);
+
+        if (!isProjectAdmin(projectId, requesterUserId)) {
+            throw new RuntimeException("Only admins can remove members");
+        }
+
         if (member.getRole() == ProjectRole.ADMIN) {
-            throw new RuntimeException("Cannot remove admin");
+            throw new RuntimeException("Cannot remove last admin");
         }
         projectMemberRepository.delete(member);
     }

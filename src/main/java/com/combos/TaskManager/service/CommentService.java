@@ -45,6 +45,13 @@ public class CommentService {
         );
     }
 
+    private boolean isProjectAdmin(Long projectId, Long userId) {
+        return projectMemberRepository
+                .findByProjectIdAndUserId(projectId, userId)
+                .map(m -> m.getRole() == ProjectRole.ADMIN)
+                .orElse(false);
+    }
+
     public CommentResponseDTO createComment(Long requesterUserId, CommentRequestDTO dto) {
         Task task = findTaskById(dto.taskId());
 
@@ -93,14 +100,7 @@ public class CommentService {
         Comment comment = findCommentById(commentId);
 
         boolean isOwner = comment.getMember().getUser().getId().equals(requestUserId);
-
-        boolean isAdmin = projectMemberRepository
-                .findByProjectIdAndUserId(
-                        comment.getTask().getProject().getId(),
-                        requestUserId
-                )
-                .map(m -> m.getRole() == ProjectRole.ADMIN)
-                .orElse(false);
+        boolean isAdmin = isProjectAdmin(comment.getTask().getProject().getId(), requestUserId);
 
         if (!isOwner && !isAdmin) {
             throw new RuntimeException("Not allowed to delete this comment");
