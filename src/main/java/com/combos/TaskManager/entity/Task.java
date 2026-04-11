@@ -24,6 +24,10 @@ public class Task {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @ManyToOne
+    @JoinColumn(name = "project_member_id", nullable = false)
+    private ProjectMember member;
+
     @Column(length = 150, nullable = false)
     @Size(max = 150)
     @NotBlank

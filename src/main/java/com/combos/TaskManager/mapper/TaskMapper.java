@@ -38,11 +38,14 @@ public class TaskMapper {
                 task.getName(),
                 task.getDescription(),
                 task.getStatus(),
+                task.getMember() != null
+                        ? UserMapper.toDTO(task.getMember().getUser())
+                        : null,
                 task.getCreatedAt(),
                 task.getUpdatedAt(),
                 ProjectMapper.toSummaryDTO(task.getProject()),
                 comments
-            );
+        );
     }
 
     public static TaskSummaryDTO toSummaryDTO(Task task) {
@@ -53,7 +56,8 @@ public class TaskMapper {
         return new TaskSummaryDTO(
                 task.getId(),
                 task.getName(),
-                task.getDescription()
+                task.getDescription(),
+                task.getStatus()
         );
     }
 }
