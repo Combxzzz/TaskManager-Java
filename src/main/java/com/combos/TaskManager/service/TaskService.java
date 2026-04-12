@@ -7,6 +7,9 @@ import com.combos.TaskManager.entity.ProjectMember;
 import com.combos.TaskManager.entity.Task;
 import com.combos.TaskManager.entity.enums.ProjectRole;
 import com.combos.TaskManager.entity.enums.TaskStatus;
+import com.combos.TaskManager.exception.InvalidOperationException;
+import com.combos.TaskManager.exception.ResourceNotFoundException;
+import com.combos.TaskManager.exception.UnauthorizedException;
 import com.combos.TaskManager.mapper.TaskMapper;
 import com.combos.TaskManager.repository.ProjectMemberRepository;
 import com.combos.TaskManager.repository.TaskRepository;
@@ -26,24 +29,27 @@ public class TaskService {
 
     private Task findTaskById(Long id) {
         return taskRepository.findById(id).orElseThrow(
-                () -> new RuntimeException("Task not found")
+                () -> new ResourceNotFoundException("Task", "id", id)
         );
     }
 
     private boolean canModifyTask(Task task, Long requesterUserId) {
         boolean isOwner = task.getMember().getUser().getId().equals(requesterUserId);
-        boolean isAdmin = projectMemberRepository
+        boolean isProjectManager = projectMemberRepository
                 .findByProjectIdAndUserId(task.getProject().getId(), requesterUserId)
-                .map(m -> m.getRole() == ProjectRole.ADMIN)
+                .map(m -> m.getRole() == ProjectRole.ADMIN || m.getRole() == ProjectRole.OWNER)
                 .orElse(false);
 
-        return isOwner || isAdmin;
+        return isOwner || isProjectManager;
     }
 
     public TaskResponseDTO createTask(Long requesterUserId, TaskRequestDTO dto) {
         ProjectMember member = projectMemberRepository
                 .findByProjectIdAndUserId(dto.projectId(), requesterUserId)
-                .orElseThrow(() -> new RuntimeException("User not in project"));
+                .orElseThrow(() -> new UnauthorizedException(
+                        "create task",
+                        "You must be a member of this project"
+                ));
 
         Task task = TaskMapper.toEntity(dto);
 
@@ -71,7 +77,10 @@ public class TaskService {
         Task task = findTaskById(id);
 
         if (!canModifyTask(task, requesterUserId)) {
-            throw new RuntimeException("Not allowed to update this task");
+            throw new UnauthorizedException(
+                    "update task",
+                    "Only the task creator, project owner, or project admins can modify tasks"
+            );
         }
 
         if (dto.name() != null) {
@@ -91,7 +100,14 @@ public class TaskService {
         Task task = findTaskById(id);
 
         if (!canModifyTask(task, requesterUserId)) {
-            throw new RuntimeException("Not allowed to update this task");
+            throw new UnauthorizedException(
+                    "update task status",
+                    "Only the task creator, project owner, or project admins can modify this task"
+            );
+        }
+
+        if (newStatus == null) {
+            throw new InvalidOperationException("update task status", "Task status cannot be null");
         }
 
         task.setStatus(newStatus);
@@ -105,7 +121,10 @@ public class TaskService {
         Task task = findTaskById(id);
 
         if (!canModifyTask(task, requesterUserId)) {
-            throw new RuntimeException("Not allowed to delete this task");
+            throw new UnauthorizedException(
+                    "delete task",
+                    "Only the task creator, project owner, or project admins can delete this task"
+            );
         }
 
         taskRepository.delete(task);

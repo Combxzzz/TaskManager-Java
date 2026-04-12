@@ -7,6 +7,8 @@ import com.combos.TaskManager.entity.Project;
 import com.combos.TaskManager.entity.ProjectMember;
 import com.combos.TaskManager.entity.User;
 import com.combos.TaskManager.entity.enums.ProjectRole;
+import com.combos.TaskManager.exception.ResourceNotFoundException;
+import com.combos.TaskManager.exception.UnauthorizedException;
 import com.combos.TaskManager.mapper.ProjectMapper;
 import com.combos.TaskManager.repository.ProjectMemberRepository;
 import com.combos.TaskManager.repository.ProjectRepository;
@@ -30,21 +32,31 @@ public class ProjectService {
 
     private Project findProjectById(Long id) {
         return projectRepository.findById(id).orElseThrow(
-                () -> new RuntimeException("Project not found")
+                () -> new ResourceNotFoundException("Project", "id", id)
         );
     }
 
     private User findUserById(Long id) {
         return userRepository.findById(id).orElseThrow(
-                () -> new RuntimeException("User not found")
+                () -> new ResourceNotFoundException("User", "id", id)
         );
     }
 
-    private boolean isProjectAdmin(Long projectId, Long userId) {
-        return projectMemberRepository
-                .findByProjectIdAndUserId(projectId, userId)
-                .map(m -> m.getRole() == ProjectRole.ADMIN)
-                .orElse(false);
+    private ProjectMember findMembershipByProjectAndUser(Long projectId, Long userId) {
+        return projectMemberRepository.findByProjectIdAndUserId(projectId, userId).orElseThrow(
+                () -> new UnauthorizedException(
+                        "access project",
+                        "You must be a member of this project"
+                )
+        );
+    }
+
+    private boolean canManageProject(ProjectRole role) {
+        return role == ProjectRole.OWNER || role == ProjectRole.ADMIN;
+    }
+
+    private boolean isProjectOwner(ProjectRole role) {
+        return role == ProjectRole.OWNER;
     }
 
     public ProjectResponseDTO createProject(Long requesterUserId, ProjectRequestDTO dto) {
@@ -56,7 +68,7 @@ public class ProjectService {
         ProjectMember member = new ProjectMember();
         member.setUser(user);
         member.setProject(project);
-        member.setRole(ProjectRole.ADMIN);
+        member.setRole(ProjectRole.OWNER);
         projectMemberRepository.save(member);
 
         return ProjectMapper.toDTO(project);
@@ -76,9 +88,10 @@ public class ProjectService {
 
     public ProjectResponseDTO updateProject(Long requesterUserId, Long projectId, ProjectUpdateDTO dto) {
         Project project = findProjectById(projectId);
+        ProjectMember requester = findMembershipByProjectAndUser(projectId, requesterUserId);
 
-        if (!isProjectAdmin(projectId, requesterUserId)) {
-            throw new RuntimeException("Only project admin can update this project");
+        if (!canManageProject(requester.getRole())) {
+            throw new UnauthorizedException("update project", "Only owners or admins can update this project");
         }
 
         if (dto.name() != null) {
@@ -96,9 +109,10 @@ public class ProjectService {
 
     public void deleteById(Long requesterUserId, Long projectId) {
         Project project = findProjectById(projectId);
+        ProjectMember requester = findMembershipByProjectAndUser(projectId, requesterUserId);
 
-        if (!isProjectAdmin(projectId, requesterUserId)) {
-            throw new RuntimeException("Only project admin can delete this project");
+        if (!isProjectOwner(requester.getRole())) {
+            throw new UnauthorizedException("delete project", "Only owners can delete this project");
         }
 
         projectRepository.delete(project);
