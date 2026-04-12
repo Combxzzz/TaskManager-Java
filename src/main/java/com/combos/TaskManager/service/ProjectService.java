@@ -7,6 +7,8 @@ import com.combos.TaskManager.entity.Project;
 import com.combos.TaskManager.entity.ProjectMember;
 import com.combos.TaskManager.entity.User;
 import com.combos.TaskManager.entity.enums.ProjectRole;
+import com.combos.TaskManager.exception.ResourceNotFoundException;
+import com.combos.TaskManager.exception.UnauthorizedException;
 import com.combos.TaskManager.mapper.ProjectMapper;
 import com.combos.TaskManager.repository.ProjectMemberRepository;
 import com.combos.TaskManager.repository.ProjectRepository;
@@ -30,19 +32,22 @@ public class ProjectService {
 
     private Project findProjectById(Long id) {
         return projectRepository.findById(id).orElseThrow(
-                () -> new RuntimeException("Project not found")
+                () -> new ResourceNotFoundException("Project", "id", id)
         );
     }
 
     private User findUserById(Long id) {
         return userRepository.findById(id).orElseThrow(
-                () -> new RuntimeException("User not found")
+                () -> new ResourceNotFoundException("User", "id", id)
         );
     }
 
     private ProjectMember findMembershipByProjectAndUser(Long projectId, Long userId) {
         return projectMemberRepository.findByProjectIdAndUserId(projectId, userId).orElseThrow(
-                () -> new RuntimeException("User is not a member of this project")
+                () -> new UnauthorizedException(
+                        "access project",
+                        "You must be a member of this project"
+                )
         );
     }
 
@@ -86,7 +91,7 @@ public class ProjectService {
         ProjectMember requester = findMembershipByProjectAndUser(projectId, requesterUserId);
 
         if (!canManageProject(requester.getRole())) {
-            throw new RuntimeException("Only owners or admins can update this project");
+            throw new UnauthorizedException("update project", "Only owners or admins can update this project");
         }
 
         if (dto.name() != null) {
@@ -107,7 +112,7 @@ public class ProjectService {
         ProjectMember requester = findMembershipByProjectAndUser(projectId, requesterUserId);
 
         if (!isProjectOwner(requester.getRole())) {
-            throw new RuntimeException("Only owners can delete this project");
+            throw new UnauthorizedException("delete project", "Only owners can delete this project");
         }
 
         projectRepository.delete(project);

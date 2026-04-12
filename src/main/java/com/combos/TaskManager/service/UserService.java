@@ -4,6 +4,9 @@ import com.combos.TaskManager.dto.UserDTO.UserRequestDTO;
 import com.combos.TaskManager.dto.UserDTO.UserResponseDTO;
 import com.combos.TaskManager.dto.UserDTO.UserUpdateDTO;
 import com.combos.TaskManager.entity.User;
+import com.combos.TaskManager.exception.DuplicateResourceException;
+import com.combos.TaskManager.exception.ResourceNotFoundException;
+import com.combos.TaskManager.exception.UnauthorizedException;
 import com.combos.TaskManager.mapper.UserMapper;
 import com.combos.TaskManager.repository.UserRepository;
 import org.springframework.stereotype.Service;
@@ -20,17 +23,17 @@ public class UserService {
 
     private User findUserById(Long id) {
         return repository.findById(id).orElseThrow(
-                () -> new RuntimeException("User not found")
+                () -> new ResourceNotFoundException("User", "id", id)
         );
     }
 
     public UserResponseDTO createUser(UserRequestDTO dto) {
         if (repository.existsByEmail(dto.email())) {
-            throw new RuntimeException("Email already exists");
+            throw new DuplicateResourceException("User", "email", dto.email());
         }
 
         if (repository.existsByNickname(dto.nickname())) {
-            throw new RuntimeException("Nickname already exists");
+            throw new DuplicateResourceException("User", "nickname", dto.nickname());
         }
 
         User user = UserMapper.toEntity(dto);
@@ -55,7 +58,7 @@ public class UserService {
         User user = findUserById(id);
 
         if (!user.getId().equals(requesterUserId)) {
-            throw new RuntimeException("You can only update your own account");
+            throw new UnauthorizedException("update user", "You can only update your own account");
         }
 
         if (dto.name() != null) {
@@ -64,14 +67,14 @@ public class UserService {
 
         if (dto.nickname() != null && !dto.nickname().equals(user.getNickname())) {
             if (repository.existsByNickname(dto.nickname())) {
-                throw new RuntimeException("Nickname already in use");
+                throw new DuplicateResourceException("User", "nickname", dto.nickname());
             }
             user.setNickname(dto.nickname());
         }
 
         if (dto.email() != null && !dto.email().equals(user.getEmail())) {
             if (repository.existsByEmail(dto.email())) {
-                throw new RuntimeException("Email already in use");
+                throw new DuplicateResourceException("User", "email", dto.email());
             }
             user.setEmail(dto.email());
         }
@@ -88,7 +91,7 @@ public class UserService {
     public void deleteById(Long requesterUserId, Long id) {
         User user = findUserById(id);
         if (!user.getId().equals(requesterUserId)) {
-            throw new RuntimeException("You can only delete your own account");
+            throw new UnauthorizedException("delete user", "You can only delete your own account");
         }
         repository.delete(user);
     }

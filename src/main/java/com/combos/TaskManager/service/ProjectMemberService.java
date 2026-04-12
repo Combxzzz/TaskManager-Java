@@ -6,6 +6,9 @@ import com.combos.TaskManager.entity.Project;
 import com.combos.TaskManager.entity.ProjectMember;
 import com.combos.TaskManager.entity.User;
 import com.combos.TaskManager.entity.enums.ProjectRole;
+import com.combos.TaskManager.exception.DuplicateResourceException;
+import com.combos.TaskManager.exception.ResourceNotFoundException;
+import com.combos.TaskManager.exception.UnauthorizedException;
 import com.combos.TaskManager.mapper.ProjectMemberMapper;
 import com.combos.TaskManager.repository.ProjectMemberRepository;
 import com.combos.TaskManager.repository.ProjectRepository;
@@ -32,25 +35,28 @@ public class ProjectMemberService {
 
     private User findUserById(Long id) {
         return userRepository.findById(id).orElseThrow(
-                () -> new RuntimeException("User not found")
+                () -> new ResourceNotFoundException("User", "id", id)
         );
     }
 
     private Project findProjectById(Long id) {
         return projectRepository.findById(id).orElseThrow(
-                () -> new RuntimeException("Project not found")
+                () -> new ResourceNotFoundException("Project", "id", id)
         );
     }
 
     private ProjectMember findProjectMemberById(Long id) {
         return projectMemberRepository.findById(id).orElseThrow(
-                () -> new RuntimeException("Project member not found")
+                () -> new ResourceNotFoundException("ProjectMember", "id", id)
         );
     }
 
     private ProjectMember findMembershipByProjectAndUser(Long projectId, Long userId) {
         return projectMemberRepository.findByProjectIdAndUserId(projectId, userId).orElseThrow(
-                () -> new RuntimeException("User is not a member of this project")
+                () -> new UnauthorizedException(
+                        "access project members",
+                        "You must be a member of this project"
+                )
         );
     }
 
@@ -80,11 +86,14 @@ public class ProjectMemberService {
         ProjectMember requester = findMembershipByProjectAndUser(dto.projectId(), requesterUserId);
 
         if (!canManageMembers(requester.getRole())) {
-            throw new RuntimeException("Only owners or admins can add members to project");
+            throw new UnauthorizedException(
+                    "add member",
+                    "Only owners or admins can add members to this project"
+            );
         }
 
         if (projectMemberRepository.existsByUserAndProject(user, project)) {
-            throw new RuntimeException("User already in this project");
+            throw new DuplicateResourceException("ProjectMember", "userId", dto.userId());
         }
 
         ProjectMember member = ProjectMemberMapper.toEntity(dto, project, user);
@@ -103,7 +112,7 @@ public class ProjectMemberService {
     public ProjectMemberResponseDTO findByProjectIdAndUserId(Long projectId, Long userId) {
         ProjectMember member = projectMemberRepository.findByProjectIdAndUserId(projectId, userId)
                 .orElseThrow(
-                        () -> new RuntimeException("Member not found")
+                        () -> new ResourceNotFoundException("ProjectMember", "userId", userId)
                 );
 
         return ProjectMemberMapper.toDTO(member);
@@ -114,15 +123,15 @@ public class ProjectMemberService {
         ProjectMember member = findProjectMemberById(memberId);
 
         if (!member.getProject().getId().equals(projectId)) {
-            throw new RuntimeException("Member does not belong to this project");
+            throw new ResourceNotFoundException("Member does not belong to this project");
         }
 
         if (!canManageMembers(requester.getRole())) {
-            throw new RuntimeException("Only owners or admins can remove members");
+            throw new UnauthorizedException("remove member", "Only owners or admins can remove members");
         }
 
         if (!canRemoveMember(requester, member)) {
-            throw new RuntimeException("You do not have permission to remove this member");
+            throw new UnauthorizedException("remove member", "You do not have permission to remove this member");
         }
 
         projectMemberRepository.delete(member);
